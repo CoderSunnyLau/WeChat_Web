@@ -3,43 +3,104 @@
 <head>
 	<title>QR_Scan</title>
 	<meta charset="utf-8">
-	<script src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+	<script src="http://res.wx.qq.com/open/js/jweixin-1.2.0.js"></script>
 	<script src="http://libs.baidu.com/jquery/1.10.2/jquery.min.js"></script>
+	<!-- <script src="data:application/octet-stream;base64,DQoJdmFyIHNuID0gew0KCQlBUFBJRDogInd4YjQzMDM0YzUzMjk2NTE0NiIsDQoJCUFQUFNDUklUOiAiNWE0NmI1ZDM5NzA0ZDVmNGIxNGM5ZTRmNGEwYzkwYTgiDQoJfQ=="></script> -->
+	<script src="https://cdn.bootcss.com/js-sha1/0.6.0/sha1.min.js"></script>
 </head>
 <body>
 	<div>test</div>
+	<div id="qrscan" onclick="scanCode()">点我扫一扫</div>
 	<script type="text/javascript">
-	var randomString = function(len) {
-		len = len || 32;
-		var $chars = 'ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678';    /****默认去掉了容易混淆的字符oOLl,9gq,Vv,Uu,I1****/
-		var maxPos = $chars.length;
-		var pwd = '';
-		for (var i = 0; i < len; i++) {
-			pwd += $chars.charAt(Math.floor(Math.random() * maxPos));
+		var sn = {
+			APPID: "wxb43034c532965146",
+			APPSCRIT: "5a46b5d39704d5f4b14c9e4f4a0c90a8"
 		}
-		return pwd;
-	};
-	
-	var access_token = localStorage.getItem("access_token");
-	if(!access_token){
-		$.ajax({
-			url:"https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=ACCESS_TOKEN&type=jsapi",
-			success:function(res){
-				console.log(res);
-				localStorage.setItem("access_token", JSON.stringfy(res));
+		var randomString = function(len) {
+			len = len || 32;
+			var $chars = 'ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678';    /****默认去掉了容易混淆的字符oOLl,9gq,Vv,Uu,I1****/
+			var maxPos = $chars.length;
+			var pwd = '';
+			for (var i = 0; i < len; i++) {
+				pwd += $chars.charAt(Math.floor(Math.random() * maxPos));
 			}
+			return pwd;
+		};
+
+		var getTicket = function(at){
+			if(!jsapi_ticket){
+				$.ajax({
+					url: jsapi_url,
+					data: {
+						access_token: at,
+						type: "jsapi"
+					},
+					success: function(res){
+						console.log("jsapi_ticket success!",res);
+						localStorage.setItem("jsapi_ticket", res.ticket);
+					}
+				});
+			}else{
+				console.log("local jsapi_ticket.",jsapi_ticket);
+			}
+		};
+		
+		var getSignature = function(_jsapi_ticket, _noncestr, _timestamp){
+			var noncestr = randomString(20);
+			var _url = window.location.href.split("#")[0];
+			var _str = "jsapi_ticket=" + _jsapi_ticket + "&noncestr=" + _noncestr + "&timestamp=" + _timestamp + "&url=" + _url;
+			console.log(_str);
+			return sha1(_str);
+		}
+
+		var scanCode = function(){
+			wx.scanQRCode({
+				needResult: 1,
+				scanType: ["qrCode", "barCode"],
+				success: function(res){
+					console.log(res);
+					alert("success " + JSON.stringify(res));
+				},
+				fail: function(res){
+					console.log(res);
+					alert("fail... " + JSON.stringify(res));
+				}
+			});
+		}
+		var access_token = localStorage.getItem("access_token");
+		var jsapi_ticket = localStorage.getItem("jsapi_ticket");
+		var access_token = "9_d301YUSXau4_7tkBU_Yz_Rkj1IYa1D8vONiZSqkU7RBTvn_AVo0N7j8rWrDmCqilmM6xRl8XKTQMpb0pOtLR_ffCHxYLmU8CHpq3muYKyKenzMCrFvphkf7tl_rFgSY-h3fa-UL35KCGCba_OBQfAEAKXM";
+		var jsapi_ticket = "kgt8ON7yVITDhtdwci0qeZDVNENeZClV9rqFCKhkgSuxg5yuTssZ5ogS7sUKQOL2w_eBMdE8vJwkR3UpuI-CWA";
+		access_url = "https://api.weixin.qq.com/cgi-bin/token";
+		jsapi_url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket";
+		if(!access_token){
+			$.ajax({
+				url: access_url,
+				data: {
+					grant_type: "client_credential",
+					appid: sn.APPID,
+					secret: sn.APPSCRIT
+				},
+				error: function(res){
+					console.log("access_token success!",res);
+					localStorage.setItem("access_token", res.access_token);
+					getTicket(res.access_token);
+				}
+			});
+		}else{
+			console.log("local access_token.",access_token);
+			getTicket(access_token);
+		}
+		var timestamp = Math.round(new Date().getTime()/1000).toString();
+		var nonceStr = randomString(20);
+		wx.config({
+			debug: true, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+			appId: "wxb43034c532965146", // 必填，公众号的唯一标识
+			timestamp: timestamp, // 必填，生成签名的时间戳
+			nonceStr: nonceStr, // 必填，生成签名的随机串
+			signature: getSignature(jsapi_ticket, nonceStr, timestamp),// 必填，签名，见附录1
+			jsApiList: ["scanQRCode"] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
 		});
-	}else{
-		console.log(access_token);
-	}
-	wx.config({
-		debug: true, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
-		appId: "wxb43034c532965146", // 必填，公众号的唯一标识
-		timestamp: new Date().getTime(), // 必填，生成签名的时间戳
-		nonceStr: randomString(20), // 必填，生成签名的随机串
-		signature: "",// 必填，签名，见附录1
-		jsApiList: ["scanQRCode"] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
-	});
 	</script>
 </body>
 </html>
